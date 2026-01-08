@@ -12,6 +12,16 @@ def init_db(db_path: str) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS clients (
+            client_id TEXT PRIMARY KEY,
+            token TEXT,
+            first_seen TEXT,
+            last_seen TEXT
+        )
+        """
+    )
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS round_metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ts TEXT NOT NULL,
@@ -37,6 +47,30 @@ def init_db(db_path: str) -> sqlite3.Connection:
     )
     conn.commit()
     return conn
+
+
+def upsert_client(conn: sqlite3.Connection, client_id: str, token: str | None) -> None:
+    now = datetime.utcnow().isoformat()
+    conn.execute(
+        """
+        INSERT INTO clients (client_id, token, first_seen, last_seen)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(client_id) DO UPDATE SET last_seen=excluded.last_seen
+        """,
+        (client_id, token, now, now),
+    )
+    conn.commit()
+
+
+def update_heartbeat(conn: sqlite3.Connection, client_id: str) -> None:
+    now = datetime.utcnow().isoformat()
+    conn.execute(
+        """
+        UPDATE clients SET last_seen = ? WHERE client_id = ?
+        """,
+        (now, client_id),
+    )
+    conn.commit()
 
 
 def add_round_metrics(

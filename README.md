@@ -24,31 +24,40 @@ pip install -r requirements.txt
 python scripts/setup.py
 ```
 
-## Menjalankan Server & Client (M1–M5)
-Buka 4 terminal (atau gunakan script demo di bawah).
-
-Terminal 1 (Control API + Dashboard):
+## Menjalankan Server Pusat (M1–M2)
+Terminal 1 (Control API + DB):
 ```bash
 python -m control_api.main --config configs/control_api.yaml
 ```
 
-Terminal 2 (Flower Server):
+Terminal 2 (Portal Web):
 ```bash
-python -m fl_server.server --config configs/server.yaml
+uvicorn portal_web.main:app --port 9000
 ```
 
-Terminal 3 (Client 1):
+Portal:
+- http://127.0.0.1:9000
+- http://127.0.0.1:9000/download
+
+## Menjalankan Client UI (M4, nanti)
+Jalankan UI lokal:
 ```bash
-python -m fl_client.client --config configs/client.yaml --client-id client1
+uvicorn client_app.client_ui.main:app --port 7000
 ```
 
-Terminal 4 (Client 2):
-```bash
-python -m fl_client.client --config configs/client.yaml --client-id client2
-```
+Buka browser:
+- http://localhost:7000
 
-Dashboard:
-- http://127.0.0.1:8000/dashboard
+Alur cepat:
+1) Isi Control API URL + FL Server Address.
+2) Klik Register/Connect.
+3) Pilih mode Manual/Auto dan klik Start Training.
+4) Lihat log di panel bawah, Stop untuk menghentikan proses.
+
+## Menjalankan Client Desktop (Flet, M4)
+```bash
+python -m client_app.client_desktop.app
+```
 
 ## Demo 1 perintah (Linux/macOS/WSL)
 ```bash

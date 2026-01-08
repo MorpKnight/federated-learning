@@ -20,9 +20,10 @@ Requirement MVP:
 - Setelah N round, tercetak metrik global dan tersimpan di SQLite.
 
 Milestone Plan (urutan kerja yang aman):
-- M0 — Repo bootstrap: struktur folder, venv, requirements, konfigurasi dasar.
-- M1 — Training Plane MVP (Flower): fl_server + fl_client jalan, dataset dummy lokal, bisa run 1 server + 2 client dari satu PC (terminal berbeda).
-- M2 — Metrics logging ke SQLite: server simpan metrik global per round, client kirim metrik per round (atau server catat saat receive), schema DB + migrasi sederhana.
-- M3 — Control API MVP (FastAPI): register client + config endpoint; client saat start: register → ambil config → connect FL server.
-- M4 — Auto hyperparameter (rule-based): deteksi hardware sederhana (CPU count, RAM, GPU ada/tidak) dan rekomendasi batch_size/epochs/lr dari aturan statis.
-- M5 — Dashboard minimal: tampilkan tabel round dan tabel per-client; opsional plot sederhana.
+- M0 — Bootstrap repo.
+- M1 — Control API minimal + DB.
+- M2 — Client UI lokal (agent + UI) yang bisa register & fetch config.
+- M3 — Training Plane Flower server+client (MVP).
+- M4 — Integrasi UI -> start/stop training + tampilkan metrics.
+- M5 — Auto hyperparameter.
+- M6 — Dashboard server (opsional).
