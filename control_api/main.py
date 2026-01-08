@@ -11,7 +11,14 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 
 from .db import get_client_metrics, get_round_metrics, init_db, upsert_client, update_heartbeat
-from .models import HeartbeatRequest, RegisterRequest
+from shared.schemas import (
+    ConfigResponse,
+    HeartbeatRequest,
+    HeartbeatResponse,
+    Hyperparams,
+    RegisterRequest,
+    RegisterResponse,
+)
 
 
 def load_config(path: str) -> Dict[str, Any]:
@@ -44,29 +51,34 @@ def make_app(config_path: str) -> FastAPI:
     app = FastAPI(title="Control API")
 
     @app.post("/register")
-    def register(req: RegisterRequest):
+    def register(req: RegisterRequest) -> RegisterResponse:
         logger.info("register client_id=%s", req.client_id)
         upsert_client(conn, req.client_id, token_cfg)
-        return {"client_id": req.client_id, "token": token_cfg}
+        return RegisterResponse(client_id=req.client_id, token=token_cfg)
 
     @app.get("/config/{client_id}")
-    def get_config(client_id: str):
+    def get_config(client_id: str) -> ConfigResponse:
         logger.info("config request client_id=%s", client_id)
-        return {
-            "fl_server_address": fl_cfg.get("address", "127.0.0.1:8080"),
-            "policy": policy_cfg,
-            "train": {
-                "batch_size": train_cfg.get("batch_size", 32),
-                "epochs": train_cfg.get("epochs", 1),
-                "lr": train_cfg.get("lr", 0.01),
-            },
-        }
+        hyperparams = Hyperparams(
+            batch_size=train_cfg.get("batch_size", 32),
+            epochs=train_cfg.get("epochs", 1),
+            lr=train_cfg.get("lr", 0.01),
+        )
+        return ConfigResponse(
+            fl_server_address=fl_cfg.get("address", "127.0.0.1:8080"),
+            policy=policy_cfg,
+            hyperparams=hyperparams,
+        )
 
     @app.post("/heartbeat")
-    def heartbeat(req: HeartbeatRequest, request: Request):
+    def heartbeat(req: HeartbeatRequest, request: Request) -> HeartbeatResponse:
         logger.info("heartbeat client_id=%s ip=%s", req.client_id, request.client.host)
         update_heartbeat(conn, req.client_id)
-        return {"status": "ok", "ts": datetime.utcnow().isoformat()}
+        return HeartbeatResponse(status="ok", timestamp=datetime.utcnow().isoformat())
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
 
     @app.get("/dashboard", response_class=HTMLResponse)
     def dashboard():

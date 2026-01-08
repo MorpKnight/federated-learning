@@ -223,7 +223,7 @@ def main() -> None:
         registered_id = register_client(control_api_url, client_id, logger)
         remote_cfg = fetch_remote_config(control_api_url, registered_id, logger)
         server_address = remote_cfg.get("fl_server_address", server_address)
-        train_cfg = {**train_cfg, **remote_cfg.get("train", {})}
+        train_cfg = {**train_cfg, **remote_cfg.get("hyperparams", {})}
 
     batch_size = int(os.getenv("FL_BATCH_SIZE", train_cfg.get("batch_size", 32)))
     epochs = int(os.getenv("FL_EPOCHS", train_cfg.get("epochs", 1)))
@@ -281,4 +281,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

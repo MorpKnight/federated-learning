@@ -1,4 +1,6 @@
 const logsEl = document.getElementById("logs");
+let connectOnly = false;
+let autoConnectTriggered = false;
 
 function appendLog(line) {
   if (!line) return;
@@ -18,16 +20,33 @@ async function loadStatus() {
   document.getElementById("lr").value = data.config.train.lr || 0.01;
   document.getElementById("hpMode").value = data.config.train.auto ? "auto" : "manual";
 
-  document.getElementById("connected").textContent = data.process.connected ? "yes" : "no";
+  const connection = data.connection || {};
+  let connectionLabel = "no";
+  if (connection.connected) {
+    connectionLabel = "Connected";
+  } else if (connection.registered && connection.config_fetched) {
+    connectionLabel = "Registered + Config fetched";
+  }
+  document.getElementById("connected").textContent = connectionLabel;
   document.getElementById("running").textContent = data.process.running ? "yes" : "no";
   document.getElementById("lastLoss").textContent = data.process.last_loss ?? "-";
   document.getElementById("lastAcc").textContent = data.process.last_acc ?? "-";
+
+  connectOnly = Boolean(data.config.connect_only);
+  const startBtn = document.getElementById("btnStart");
+  startBtn.disabled = connectOnly;
+  startBtn.title = connectOnly ? "Training disabled in connect_only mode" : "";
 
   const d = data.device;
   document.getElementById("deviceInfo").textContent =
     `${d.cpu_count} CPU, ${d.ram_gb} GB, GPU=${d.gpu_available}`;
   document.getElementById("datasetInfo").textContent =
     data.dataset.num_samples !== null ? data.dataset.num_samples : "-";
+
+  if (connectOnly && !connection.connected && !autoConnectTriggered) {
+    autoConnectTriggered = true;
+    await register();
+  }
 }
 
 async function saveConfig() {
@@ -57,6 +76,10 @@ async function register() {
 }
 
 async function startTraining() {
+  if (connectOnly) {
+    appendLog("[connect_only] training disabled");
+    return;
+  }
   await fetch("/start", { method: "POST" });
   await loadStatus();
 }
