@@ -3,17 +3,21 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
 import requests
 import yaml
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import ValidationError
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from fl_client.autotune import detect_cpu_count, detect_gpu_available, detect_ram_gb
 from fl_client.data import get_dataloaders
+
+from shared.schemas import ConfigResponse, HeartbeatRequest
 
 from .config_store import get_client_config_path, load_config, save_config
 from .process_manager import ProcessManager
@@ -43,6 +47,10 @@ def make_app() -> FastAPI:
     def index():
         return FileResponse(root / "client_app" / "client_ui" / "static" / "index.html")
 
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
     @app.get("/status")
     def status():
         cfg = load_config()
@@ -62,11 +70,19 @@ def make_app() -> FastAPI:
         except Exception:
             dataset_size = None
 
+        connection = cfg.get("connection", {})
+        connected = (
+            connection.get("registered", False)
+            and connection.get("config_fetched", False)
+            and connection.get("heartbeat_sent", False)
+        )
+
         return {
             "config": cfg,
             "device": device_info,
             "dataset": {"num_samples": dataset_size},
             "process": manager.status.__dict__,
+            "connection": {**connection, "connected": connected},
         }
 
     @app.post("/config")
@@ -84,26 +100,72 @@ def make_app() -> FastAPI:
         if not url:
             raise HTTPException(status_code=400, detail="control_api.url is required")
         client_id = cfg.get("client_id", "client1")
+        connection_state = {
+            "registered": False,
+            "config_fetched": False,
+            "heartbeat_sent": False,
+            "last_error": "",
+            "last_updated": None,
+        }
         try:
+            logger.info("registering client_id=%s with control_api=%s", client_id, url)
             resp = requests.post(f"{url}/register", json={"client_id": client_id}, timeout=5)
             resp.raise_for_status()
+            connection_state["registered"] = True
         except requests.RequestException as exc:
+            connection_state["last_error"] = str(exc)
+            cfg["connection"] = connection_state
+            save_config(cfg)
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
         try:
+            logger.info("fetching remote config for client_id=%s", client_id)
             remote = requests.get(f"{url}/config/{client_id}", timeout=5)
             remote.raise_for_status()
+            connection_state["config_fetched"] = True
         except requests.RequestException as exc:
+            connection_state["last_error"] = str(exc)
+            cfg["connection"] = connection_state
+            save_config(cfg)
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
         remote_cfg = remote.json()
-        fl_addr = remote_cfg.get("fl_server_address")
+        try:
+            parsed_cfg = ConfigResponse.model_validate(remote_cfg)
+        except ValidationError as exc:
+            connection_state["last_error"] = str(exc)
+            cfg["connection"] = connection_state
+            save_config(cfg)
+            raise HTTPException(status_code=502, detail="Invalid config response") from exc
+
+        fl_addr = parsed_cfg.fl_server_address
         if fl_addr:
             cfg.setdefault("fl_server", {})["address"] = fl_addr
-        train_cfg = remote_cfg.get("train", {})
-        if train_cfg:
-            cfg.setdefault("train", {}).update(train_cfg)
+        cfg.setdefault("train", {}).update(parsed_cfg.hyperparams.model_dump())
 
+        try:
+            logger.info("sending heartbeat for client_id=%s", client_id)
+            hb_payload = HeartbeatRequest(
+                client_id=client_id,
+                status="online",
+                timestamp=datetime.utcnow().isoformat(),
+            )
+            hb = requests.post(
+                f"{url}/heartbeat",
+                json=hb_payload.model_dump(),
+                timeout=5,
+            )
+            hb.raise_for_status()
+            connection_state["heartbeat_sent"] = True
+        except requests.RequestException as exc:
+            connection_state["last_error"] = str(exc)
+            cfg["connection"] = connection_state
+            save_config(cfg)
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        connection_state["last_error"] = ""
+        connection_state["last_updated"] = datetime.utcnow().isoformat()
+        cfg["connection"] = connection_state
         save_config(cfg)
         return {"status": "ok", "client_id": client_id, "remote": remote_cfg}
 

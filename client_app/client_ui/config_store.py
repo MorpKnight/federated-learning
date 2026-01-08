@@ -23,6 +23,13 @@ def default_config() -> Dict[str, Any]:
         "client_id": "client1",
         "control_api": {"url": "http://127.0.0.1:8000", "token": ""},
         "fl_server": {"address": "127.0.0.1:8080"},
+        "connection": {
+            "registered": False,
+            "config_fetched": False,
+            "heartbeat_sent": False,
+            "last_error": "",
+            "last_updated": None,
+        },
         "train": {
             "batch_size": 32,
             "epochs": 1,
