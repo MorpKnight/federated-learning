@@ -27,12 +27,12 @@ python scripts/setup.py
 ## Menjalankan Server Pusat (M1–M2)
 Terminal 1 (Control API + DB):
 ```bash
-python -m control_api.main --config configs/control_api.yaml
+./scripts/run_control_api.sh
 ```
 
 Terminal 2 (Portal Web):
 ```bash
-uvicorn portal_web.main:app --port 9000
+./scripts/run_portal_web.sh
 ```
 
 Portal:
@@ -42,7 +42,7 @@ Portal:
 ## Menjalankan Client UI (M4, nanti)
 Jalankan UI lokal:
 ```bash
-uvicorn client_app.client_ui.main:app --port 7000
+./scripts/run_client_app.sh
 ```
 
 Buka browser:
@@ -64,6 +64,24 @@ python -m client_app.client_desktop.app
 ./scripts/run_local_demo.sh
 ```
 
+## Demo koneksi end-to-end (tanpa training)
+Menjalankan Control API, Portal Web, dan Client UI, lalu melakukan register/config/heartbeat otomatis:
+```bash
+./scripts/run_connect_demo.sh
+```
+
+Status koneksi akan muncul di terminal dan UI akan menampilkan status `Connected` atau
+`Registered + Config fetched`.
+
+Verifikasi koneksi saja (tanpa menjalankan portal/UI):
+```bash
+python scripts/verify_connect.py
+```
+
+## Health endpoints
+- Control API: `GET http://127.0.0.1:8000/health`
+- Client UI: `GET http://127.0.0.1:7000/health`
+
 ## Konfigurasi penting
 - `configs/control_api.yaml`: host/port Control API + default FL server address.
 - `configs/server.yaml`: address Flower server + jumlah round + DB path.
@@ -77,3 +95,10 @@ Contoh query:
 sqlite3 data/metrics.db "SELECT round, num_clients, loss, accuracy FROM round_metrics ORDER BY id DESC LIMIT 5;"
 sqlite3 data/metrics.db "SELECT round, client_id, loss, accuracy, num_examples FROM client_metrics ORDER BY id DESC LIMIT 5;"
 ```
+
+## Troubleshooting
+- **UI tidak menunjukkan Connected**: pastikan Control API URL di UI mengarah ke `http://127.0.0.1:8000`
+  dan endpoint `/health` merespons `{"status":"ok"}`.
+- **Register gagal**: lihat log di `control_api.log` dan `client_ui.log` setelah menjalankan
+  `./scripts/run_connect_demo.sh`.
+- **Port bentrok**: pastikan port 8000/9000/7000 belum dipakai proses lain.
