@@ -38,6 +38,7 @@ def request_json(method: str, url: str, payload: Dict[str, Any] | None = None) -
 
 def main() -> int:
     base_url = os.environ.get("CONTROL_API_URL", "http://127.0.0.1:8000").rstrip("/")
+    base_url = "http://127.0.0.1:8000"
     try:
         wait_for_health(f"{base_url}/health", timeout_s=30)
         client_id = "demo-client"
@@ -53,6 +54,8 @@ def main() -> int:
             timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
         request_json("POST", f"{base_url}/heartbeat", heartbeat_payload.model_dump())
+        request_json("GET", f"{base_url}/config/{client_id}")
+        request_json("POST", f"{base_url}/heartbeat", {"client_id": client_id})
     except Exception as exc:
         print(f"CONNECT_ERROR: {exc}", file=sys.stderr)
         return 1
