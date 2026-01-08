@@ -1,0 +1,15 @@
+client:
+  server_address: "127.0.0.1:8080"
+control_api:
+  url: "http://127.0.0.1:8000"
+train:
+  batch_size: 32
+  epochs: 1
+  lr: 0.01
+  device: "auto"
+  auto: false
+data:
+  data_dir: "data"
+  num_workers: 2
+logging:
+  level: "INFO"

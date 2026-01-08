@@ -1,0 +1,7 @@
+﻿server:
+  host: "127.0.0.1"
+  port: 8000
+auth:
+  api_token: "devtoken"
+db:
+  path: "data/control.db"

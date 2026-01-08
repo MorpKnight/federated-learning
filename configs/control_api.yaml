@@ -1,0 +1,13 @@
+api:
+  host: "127.0.0.1"
+  port: 8000
+logging:
+  level: "INFO"
+db:
+  path: "data/metrics.db"
+fl_server:
+  address: "127.0.0.1:8080"
+train:
+  batch_size: 32
+  epochs: 1
+  lr: 0.01

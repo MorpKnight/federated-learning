@@ -1,0 +1,13 @@
+﻿client:
+  id: "client1"
+  server_address: "127.0.0.1:8080"
+control:
+  api_url: "http://127.0.0.1:8000"
+  api_token: "devtoken"
+train:
+  epochs: 2
+  batch_size: 16
+  lr: 0.05
+data:
+  num_samples: 200
+  num_features: 5
