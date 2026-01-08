@@ -68,6 +68,10 @@ def make_app(config_path: str) -> FastAPI:
         update_heartbeat(conn, req.client_id)
         return {"status": "ok", "ts": datetime.utcnow().isoformat()}
 
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
     @app.get("/dashboard", response_class=HTMLResponse)
     def dashboard():
         rounds = get_round_metrics(conn, limit=50)
