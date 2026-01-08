@@ -183,6 +183,9 @@ def make_app() -> FastAPI:
     @app.post("/start")
     def start_training():
         cfg = load_config()
+        if cfg.get("connect_only", False):
+            logger.info("connect_only enabled; training start skipped")
+            return {"status": "connect_only", "detail": "Training disabled in connect_only mode"}
         client_id = cfg.get("client_id", "client1")
         config_path = get_client_config_path()
         # write a client config compatible with fl_client.client

@@ -1,4 +1,6 @@
 const logsEl = document.getElementById("logs");
+let connectOnly = false;
+let autoConnectTriggered = false;
 
 function appendLog(line) {
   if (!line) return;
@@ -30,11 +32,21 @@ async function loadStatus() {
   document.getElementById("lastLoss").textContent = data.process.last_loss ?? "-";
   document.getElementById("lastAcc").textContent = data.process.last_acc ?? "-";
 
+  connectOnly = Boolean(data.config.connect_only);
+  const startBtn = document.getElementById("btnStart");
+  startBtn.disabled = connectOnly;
+  startBtn.title = connectOnly ? "Training disabled in connect_only mode" : "";
+
   const d = data.device;
   document.getElementById("deviceInfo").textContent =
     `${d.cpu_count} CPU, ${d.ram_gb} GB, GPU=${d.gpu_available}`;
   document.getElementById("datasetInfo").textContent =
     data.dataset.num_samples !== null ? data.dataset.num_samples : "-";
+
+  if (connectOnly && !connection.connected && !autoConnectTriggered) {
+    autoConnectTriggered = true;
+    await register();
+  }
 }
 
 async function saveConfig() {
@@ -64,6 +76,10 @@ async function register() {
 }
 
 async function startTraining() {
+  if (connectOnly) {
+    appendLog("[connect_only] training disabled");
+    return;
+  }
   await fetch("/start", { method: "POST" });
   await loadStatus();
 }

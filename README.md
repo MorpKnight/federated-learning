@@ -78,6 +78,11 @@ Verifikasi koneksi saja (tanpa menjalankan portal/UI):
 python scripts/verify_connect.py
 ```
 
+## Mode connect_only (default)
+Client UI berjalan dengan `connect_only=true` untuk fokus demo koneksi:
+- Auto-register + fetch config + heartbeat saat UI dibuka.
+- Tombol Start Training dinonaktifkan (training tidak dijalankan).
+
 ## Health endpoints
 - Control API: `GET http://127.0.0.1:8000/health`
 - Client UI: `GET http://127.0.0.1:7000/health`
