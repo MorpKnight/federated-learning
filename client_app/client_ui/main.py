@@ -10,11 +10,14 @@ from typing import Any, Dict
 import requests
 import yaml
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import ValidationError
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from fl_client.autotune import detect_cpu_count, detect_gpu_available, detect_ram_gb
 from fl_client.data import get_dataloaders
+
+from shared.schemas import ConfigResponse, HeartbeatRequest
 
 from .config_store import get_client_config_path, load_config, save_config
 from .process_manager import ProcessManager
@@ -127,12 +130,38 @@ def make_app() -> FastAPI:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
         remote_cfg = remote.json()
-        fl_addr = remote_cfg.get("fl_server_address")
+        try:
+            parsed_cfg = ConfigResponse.model_validate(remote_cfg)
+        except ValidationError as exc:
+            connection_state["last_error"] = str(exc)
+            cfg["connection"] = connection_state
+            save_config(cfg)
+            raise HTTPException(status_code=502, detail="Invalid config response") from exc
+
+        fl_addr = parsed_cfg.fl_server_address
         if fl_addr:
             cfg.setdefault("fl_server", {})["address"] = fl_addr
-        train_cfg = remote_cfg.get("train", {})
-        if train_cfg:
-            cfg.setdefault("train", {}).update(train_cfg)
+        cfg.setdefault("train", {}).update(parsed_cfg.hyperparams.model_dump())
+
+        try:
+            logger.info("sending heartbeat for client_id=%s", client_id)
+            hb_payload = HeartbeatRequest(
+                client_id=client_id,
+                status="online",
+                timestamp=datetime.utcnow().isoformat(),
+            )
+            hb = requests.post(
+                f"{url}/heartbeat",
+                json=hb_payload.model_dump(),
+                timeout=5,
+            )
+            hb.raise_for_status()
+            connection_state["heartbeat_sent"] = True
+        except requests.RequestException as exc:
+            connection_state["last_error"] = str(exc)
+            cfg["connection"] = connection_state
+            save_config(cfg)
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
 
         try:
             logger.info("sending heartbeat for client_id=%s", client_id)

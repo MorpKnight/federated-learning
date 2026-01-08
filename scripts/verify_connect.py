@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from typing import Any, Dict
 
 import requests
+from pydantic import ValidationError
+
+from shared.schemas import ConfigResponse, HeartbeatRequest
 
 
 def wait_for_health(url: str, timeout_s: int = 30) -> None:
@@ -33,11 +37,23 @@ def request_json(method: str, url: str, payload: Dict[str, Any] | None = None) -
 
 
 def main() -> int:
+    base_url = os.environ.get("CONTROL_API_URL", "http://127.0.0.1:8000").rstrip("/")
     base_url = "http://127.0.0.1:8000"
     try:
         wait_for_health(f"{base_url}/health", timeout_s=30)
         client_id = "demo-client"
         request_json("POST", f"{base_url}/register", {"client_id": client_id})
+        config_payload = request_json("GET", f"{base_url}/config/{client_id}")
+        try:
+            ConfigResponse.model_validate(config_payload)
+        except ValidationError as exc:
+            raise RuntimeError(f"Invalid config response: {exc}") from exc
+        heartbeat_payload = HeartbeatRequest(
+            client_id=client_id,
+            status="online",
+            timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
+        request_json("POST", f"{base_url}/heartbeat", heartbeat_payload.model_dump())
         request_json("GET", f"{base_url}/config/{client_id}")
         request_json("POST", f"{base_url}/heartbeat", {"client_id": client_id})
     except Exception as exc:
