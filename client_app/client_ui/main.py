@@ -163,6 +163,17 @@ def make_app() -> FastAPI:
             save_config(cfg)
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
+        try:
+            logger.info("sending heartbeat for client_id=%s", client_id)
+            hb = requests.post(f"{url}/heartbeat", json={"client_id": client_id}, timeout=5)
+            hb.raise_for_status()
+            connection_state["heartbeat_sent"] = True
+        except requests.RequestException as exc:
+            connection_state["last_error"] = str(exc)
+            cfg["connection"] = connection_state
+            save_config(cfg)
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
         connection_state["last_error"] = ""
         connection_state["last_updated"] = datetime.utcnow().isoformat()
         cfg["connection"] = connection_state

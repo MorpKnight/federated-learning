@@ -80,6 +80,10 @@ def make_app(config_path: str) -> FastAPI:
     def health():
         return {"status": "ok"}
 
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
     @app.get("/dashboard", response_class=HTMLResponse)
     def dashboard():
         rounds = get_round_metrics(conn, limit=50)
